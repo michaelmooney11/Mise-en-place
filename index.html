@@ -291,7 +291,7 @@ function App(){
   }
   function delFav(id){setFavs(function(fs){return fs.filter(function(f){return f.id!==id;});});}
 
-  var WORKER='https://grumpy-eagles-relax.loca.lt'; // Paste your Colab ngrok URL here
+  var WORKER='https://d2c986a86ae3eddc-34-80-39-103.serveousercontent.com'; // Paste your Colab ngrok URL here
   function claude(messages,extra){
     var body=Object.assign({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:messages},extra||{});
     return fetch(WORKER,{
