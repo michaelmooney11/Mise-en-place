@@ -17,8 +17,9 @@ main{max-width:780px;margin:0 auto;padding:20px 20px 80px}
 h1{font-size:2rem;font-weight:800;letter-spacing:-0.02em;line-height:1}
 .subtitle{font-size:0.7rem;letter-spacing:0.15em;text-transform:uppercase;color:#a09070;margin-left:10px}
 .tagline{color:#7a6a50;font-size:0.85rem;margin:6px 0 18px}
-.tabs{display:flex;gap:4px;background:#f0e8d8;border-radius:24px;padding:4px;width:fit-content}
-.tbtn{border:none;background:none;cursor:pointer;font-size:0.82rem;letter-spacing:0.1em;text-transform:uppercase;padding:8px 18px;border-radius:20px;color:#7a6a50;transition:all .2s}
+.ver{font-size:0.65rem;color:#c8a96e;margin-left:8px;font-family:'DM Mono',monospace}
+.tabs{display:flex;gap:4px;background:#f0e8d8;border-radius:24px;padding:4px;width:fit-content;flex-wrap:wrap}
+.tbtn{border:none;background:none;cursor:pointer;font-size:0.78rem;letter-spacing:0.08em;text-transform:uppercase;padding:7px 14px;border-radius:20px;color:#7a6a50;transition:all .2s;white-space:nowrap}
 .tbtn.on{background:#1a1208;color:#faf7f2}
 .badge{background:#c8a96e;color:white;border-radius:10px;padding:1px 7px;font-size:0.7rem;margin-left:4px;vertical-align:middle}
 .card{background:#fff;border-radius:12px;border:1.5px solid #e8ddd0;padding:16px;transition:border-color .2s,background .2s}
@@ -27,6 +28,7 @@ h1{font-size:2rem;font-weight:800;letter-spacing:-0.02em;line-height:1}
 .card-title{font-size:0.92rem;font-weight:600;line-height:1.3;cursor:pointer;flex:1}
 .card-actions{display:flex;gap:2px;flex-shrink:0;margin-left:4px}
 .icon-btn{border:none;background:none;cursor:pointer;font-size:0.8rem;color:#a09070;padding:2px 5px}
+.fav-btn{border:none;background:none;cursor:pointer;font-size:1rem;padding:2px 5px;line-height:1}
 .card-meta{font-size:0.73rem;color:#7a6a50;font-family:'DM Mono',monospace;margin-bottom:6px}
 .card-preview{font-size:0.71rem;color:#a09070;margin-bottom:12px;line-height:1.6}
 .sel-btn{width:100%;border:1.5px solid #e0d5c5;background:white;color:#7a6a50;border-radius:8px;padding:6px 0;font-size:0.78rem;cursor:pointer;letter-spacing:.04em;transition:all .2s}
@@ -86,6 +88,16 @@ textarea:focus{outline:none;border-color:#c8a96e}
 .mbtns{display:flex;gap:10px;margin-top:4px}
 .mbtns .btng,.mbtns .btnp{flex:1;text-align:center}
 .empty{text-align:center;padding:60px 20px;color:#a09070}
+.fav-row{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #f0e8d8;cursor:pointer;transition:background .1s}
+.fav-row:last-child{border-bottom:none}
+.fav-row:active{background:#f5efe4}
+.fav-info{flex:1}
+.fav-name{font-size:0.92rem;font-weight:600}
+.fav-meta{font-size:0.72rem;color:#a09070;font-family:'DM Mono',monospace;margin-top:2px}
+.fav-actions{display:flex;gap:8px;align-items:center;flex-shrink:0;margin-left:12px}
+.add-plan-btn{border:1.5px solid #c8a96e;background:white;color:#c8a96e;border-radius:20px;padding:4px 12px;font-size:0.75rem;cursor:pointer;white-space:nowrap;transition:all .2s}
+.add-plan-btn.on{background:#c8a96e;color:white}
+.section-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 </style>
 </head>
 <body>
@@ -95,7 +107,7 @@ textarea:focus{outline:none;border-color:#c8a96e}
 <script>
 (function(){
 'use strict';
-var e=React.createElement,useState=React.useState;
+var e=React.createElement,useState=React.useState,useEffect=React.useEffect;
 
 var UG={
   volume:{units:["tsp","tbsp","fl oz","cup","pint","quart","gallon","ml","l"],
@@ -156,11 +168,19 @@ function consolidate(recipes){
 }
 function fmtQ(n){
   if(!n&&n!==0)return"";
-  var F=[[1/4,"¼"],[1/3,"⅓"],[1/2,"½"],[2/3,"⅔"],[3/4,"¾"]];
+  var F=[[1/4,"\u00bc"],[1/3,"\u2153"],[1/2,"\u00bd"],[2/3,"\u2154"],[3/4,"\u00be"]];
   var w=Math.floor(n),r=n-w,f="";
   for(var i=0;i<F.length;i++)if(Math.abs(r-F[i][0])<.05){f=F[i][1];break;}
   if(f)return w?w+f:f;
   return n%1===0?String(n):n.toFixed(2).replace(/\.?0+$/,"");
+}
+
+// localStorage helpers
+function loadFavs(){
+  try{var d=localStorage.getItem('mep_favs');return d?JSON.parse(d):[];}catch(e){return[];}
+}
+function saveFavs(favs){
+  try{localStorage.setItem('mep_favs',JSON.stringify(favs));}catch(e){}
 }
 
 var SAMPLES=[
@@ -220,6 +240,10 @@ function App(){
   var _ph=useState(null),photo=_ph[0],setPhoto=_ph[1];
   var _ld=useState(false),loading=_ld[0],setLoading=_ld[1];
   var _er2=useState(''),err=_er2[0],setErr=_er2[1];
+  var _fv=useState(loadFavs),favs=_fv[0],setFavs=_fv[1];
+
+  // Persist favs to localStorage whenever they change
+  useEffect(function(){saveFavs(favs);},[favs]);
 
   var selR=recipes.filter(function(r){return selected.has(r.id);});
   var cons=consolidate(selR);
@@ -230,6 +254,7 @@ function App(){
     setSelected(function(p){var n=new Set(p);n.delete(id);return n;});
   }
   function togChk(k){setChecked(function(p){var n=new Set(p);n.has(k)?n.delete(k):n.add(k);return n;});}
+
   function iChange(setter,i,f,v){
     setter(function(r){return Object.assign({},r,{ingredients:r.ingredients.map(function(x,j){return j===i?Object.assign({},x,{[f]:v}):x;})});});
   }
@@ -246,16 +271,44 @@ function App(){
     setShowNew(false);
   }
 
-  function claude(messages){
-    return fetch('https://api.anthropic.com/v1/messages',{
+  // Favorites
+  function isFav(id){return favs.some(function(f){return f.id===id;});}
+  function togFav(recipe){
+    if(isFav(recipe.id)){
+      setFavs(function(fs){return fs.filter(function(f){return f.id!==recipe.id;});});
+    } else {
+      setFavs(function(fs){return fs.concat([JSON.parse(JSON.stringify(recipe))]);});
+    }
+  }
+  function addFavToPlan(fav){
+    // If already in recipes session, just select it; otherwise add it
+    var existing=recipes.find(function(r){return r.id===fav.id;});
+    if(!existing){
+      setRecipes(function(rs){return rs.concat([JSON.parse(JSON.stringify(fav))]);});
+    }
+    setSelected(function(p){return new Set([...p,fav.id]);});
+    setView('plan');
+  }
+  function delFav(id){setFavs(function(fs){return fs.filter(function(f){return f.id!==id;});});}
+
+  var WORKER='https://grumpy-eagles-relax.loca.lt'; // Paste your Colab ngrok URL here
+  function claude(messages,extra){
+    var body=Object.assign({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:messages},extra||{});
+    return fetch(WORKER,{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:messages}),
+      body:JSON.stringify(body),
     }).then(function(res){return res.json();}).then(function(d){
       if(d.error)throw new Error(d.error.message);
-      return JSON.parse(d.content.map(function(c){return c.text||'';}).join('').replace(/```json|```/g,'').trim());
+      var text=d.content.filter(function(c){return c.type==='text';}).map(function(c){return c.text||'';}).join('');
+      return JSON.parse(text.replace(/```json|```/g,'').trim());
     });
   }
-  function addParsed(p){var id='r'+Date.now();setRecipes(function(rs){return rs.concat([Object.assign({},p,{id:id})]);});setSelected(function(s){return new Set([...s,id]);});}
+  function addParsed(p){
+    var id='r'+Date.now();
+    var recipe=Object.assign({},p,{id:id});
+    setRecipes(function(rs){return rs.concat([recipe]);});
+    setSelected(function(s){return new Set([...s,id]);});
+  }
 
   function stripHtml(html){
     return html
@@ -271,11 +324,7 @@ function App(){
       'https://corsproxy.io/?'+encodeURIComponent(url),
     ];
     function tryProxy(i){
-      if(i>=proxies.length){
-        setLoading(false);
-        doUrlViaClaude();
-        return;
-      }
+      if(i>=proxies.length){setLoading(false);doUrlViaClaude();return;}
       var isAllOrigins=proxies[i].includes('allorigins');
       fetch(proxies[i])
         .then(function(r){return isAllOrigins?r.json():r.text();})
@@ -292,22 +341,12 @@ function App(){
   }
   function doUrlViaClaude(){
     if(!urlVal.trim())return;setLoading(true);setErr('');
-    fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',max_tokens:1000,
-        tools:[{type:'web_search_20250305',name:'web_search'}],
-        messages:[{role:'user',content:'Fetch this URL and extract the recipe ingredients. URL: '+urlVal.trim()+'\n\n'+EP}],
-      }),
-    })
-    .then(function(r){return r.json();})
-    .then(function(d){
-      if(d.error)throw new Error(d.error.message);
-      var text=d.content.filter(function(c){return c.type==='text';}).map(function(c){return c.text;}).join('');
-      var parsed=JSON.parse(text.replace(/```json|```/g,'').trim());
-      addParsed(parsed);setUrlVal('');
-    })
-    .catch(function(ex){setErr("Couldn't fetch that URL. Try copying the recipe text into the Text tab instead.");})
+    claude(
+      [{role:'user',content:'Fetch this URL and extract the recipe ingredients. URL: '+urlVal.trim()+'\n\n'+EP}],
+      {tools:[{type:'web_search_20250305',name:'web_search'}]}
+    )
+    .then(function(parsed){addParsed(parsed);setUrlVal('');})
+    .catch(function(ex){setErr("Couldn't fetch that URL. Try the Text tab instead.");})
     .finally(function(){setLoading(false);});
   }
   function doPhoto(){
@@ -339,16 +378,15 @@ function App(){
       canvas.width=w;canvas.height=h;
       canvas.getContext('2d').drawImage(img,0,0,w,h);
       var preview=canvas.toDataURL('image/jpeg',0.85);
-      var b64=preview.split(',')[1];
       URL.revokeObjectURL(url);
-      setPhoto({b64:b64,type:'image/jpeg',preview:preview});
+      setPhoto({b64:preview.split(',')[1],type:'image/jpeg',preview:preview});
     };
     img.src=url;
   }
 
   function renderImport(){
     var tabBtns=e('div',{className:'itabs'},
-      [['url','🔗 URL'],['photo','📷 Photo'],['text','📋 Text']].map(function(pair){
+      [['url','\uD83D\uDD17 URL'],['photo','\uD83D\uDCF7 Photo'],['text','\uD83D\uDCCB Text']].map(function(pair){
         return e('button',{key:pair[0],className:'itab'+(tab===pair[0]?' on':''),
           onClick:function(){setTab(pair[0]);setErr('');}},pair[1]);
       })
@@ -405,17 +443,20 @@ function App(){
       tabBtns, panel,
       err?e('p',{className:'err'},err):null,
       loading?e('div',{className:'spin-row'},e('span',{className:'spinner'},'\u27F3'),
-        tab==='url'?'Fetching and reading recipe\u2026':tab==='photo'?'Reading your photo\u2026':'Parsing recipe\u2026'):null
+        tab==='url'?'Fetching recipe (trying multiple sources\u2026)':tab==='photo'?'Reading your photo\u2026':'Parsing recipe\u2026'):null
     );
   }
 
   function renderPlan(){
     var cards=recipes.map(function(r){
       var sel=selected.has(r.id);
+      var faved=isFav(r.id);
       return e('div',{key:r.id,className:'card'+(sel?' sel':'')},
         e('div',{className:'card-head'},
           e('div',{className:'card-title',onClick:function(){togSel(r.id);}},r.name),
           e('div',{className:'card-actions'},
+            e('button',{className:'fav-btn',title:faved?'Remove from favorites':'Save to favorites',
+              onClick:function(){togFav(r);}},faved?'\u2605':'\u2606'),
             e('button',{className:'icon-btn',onClick:function(){startEdit(r);}},'\u270F\uFE0F'),
             e('button',{className:'icon-btn',onClick:function(){delRec(r.id);}},'\u2715')
           )
@@ -437,6 +478,38 @@ function App(){
       selected.size>0?e('div',{className:'cta'},
         e('button',{className:'btnp',onClick:function(){setView('list');}},
           'View Shopping List ('+selected.size+' recipes) \u2192')):null
+    );
+  }
+
+  function renderFavs(){
+    if(favs.length===0)return e('div',{className:'empty'},
+      e('div',{style:{fontSize:'2.5rem',marginBottom:12}},'\u2605'),
+      e('p',null,'No favorites yet.'),
+      e('p',{style:{fontSize:'0.82rem',marginTop:8,color:'#a09070'}},'Tap \u2606 on any recipe to save it here permanently.')
+    );
+    return e('div',null,
+      e('div',{className:'section-hdr'},
+        e('div',{className:'stitle',style:{marginBottom:0}},favs.length+' saved recipe'+(favs.length!==1?'s':'')),
+        e('p',{style:{fontSize:'0.72rem',color:'#a09070',fontFamily:"'DM Mono',monospace"}},'Tap to add to this week')
+      ),
+      e('div',{className:'list-card'},
+        favs.map(function(fav){
+          var inPlan=selected.has(fav.id);
+          return e('div',{key:fav.id,className:'fav-row'},
+            e('div',{className:'fav-info'},
+              e('div',{className:'fav-name'},fav.name),
+              e('div',{className:'fav-meta'},fav.ingredients.length+' ingredients \u00b7 '+
+                fav.ingredients.slice(0,2).map(function(i){return i.name;}).join(', ')+(fav.ingredients.length>2?'\u2026':''))
+            ),
+            e('div',{className:'fav-actions'},
+              e('button',{className:'add-plan-btn'+(inPlan?' on':''),
+                onClick:function(){addFavToPlan(fav);}},
+                inPlan?'\u2713 In plan':'+ This week'),
+              e('button',{className:'icon-btn',onClick:function(){delFav(fav.id);}},'\u2715')
+            )
+          );
+        })
+      )
     );
   }
 
@@ -497,20 +570,27 @@ function App(){
     );
   }
 
+  var mainContent;
+  if(view==='plan') mainContent=renderPlan();
+  else if(view==='favs') mainContent=renderFavs();
+  else mainContent=renderList();
+
   return e('div',null,
     e('header',null,
       e('div',{style:{display:'flex',alignItems:'baseline'}},
         e('h1',null,'mise en place'),
         e('span',{className:'subtitle'},'meal planner')
       ),
-      e('p',{className:'tagline'},'Plan your week. Consolidate ingredients. Waste less.',e('span',{style:{fontSize:'0.65rem',color:'#c8a96e',marginLeft:8,fontFamily:"'DM Mono',monospace"}},'v9')),
+      e('p',{className:'tagline'},'Plan your week. Consolidate ingredients. Waste less.',e('span',{className:'ver'},'v11')),
       e('div',{className:'tabs'},
-        e('button',{className:'tbtn'+(view==='plan'?' on':''),onClick:function(){setView('plan');}},'My Recipes'),
+        e('button',{className:'tbtn'+(view==='plan'?' on':''),onClick:function(){setView('plan');}},'Recipes'),
+        e('button',{className:'tbtn'+(view==='favs'?' on':''),onClick:function(){setView('favs');}},
+          '\u2605 Favorites',favs.length>0?e('span',{className:'badge'},favs.length):null),
         e('button',{className:'tbtn'+(view==='list'?' on':''),onClick:function(){setView('list');}},
           'Shopping List',selected.size>0?e('span',{className:'badge'},selected.size):null)
       )
     ),
-    e('main',null,view==='plan'?renderPlan():renderList()),
+    e('main',null,mainContent),
     editId&&editRec?e('div',{className:'overlay',onClick:function(){setEditId(null);}},
       e('div',{className:'modal',onClick:function(ev){ev.stopPropagation();}},
         e('h2',null,'Edit Recipe'),
