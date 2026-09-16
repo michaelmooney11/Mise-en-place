@@ -227,7 +227,8 @@ function isExcluded(name){
 }
 
 // Ingredients that should always be countable (no volume/weight unit)
-var COUNTABLE=['bread','baguette','loaf','roll','bun','bagel','tortilla','pita',
+var COUNTABLE=['can','jar','package','tin','box','bag','bottle',
+  'bread','baguette','loaf','roll','bun','bagel','tortilla','pita',
   'egg','onion','shallot','garlic','clove','lemon','lime','orange','apple',
   'tomato','potato','carrot','pepper','chili','chile','avocado','zucchini',
   'cucumber','eggplant','beetroot','turnip','radish','scallion','leek',
@@ -326,7 +327,7 @@ function saveFavs(favs){
 
 var SAMPLES=[];
 var AU=["","tsp","tbsp","fl oz","cup","pint","ml","l","g","kg","oz","lb"];
-var EP='Extract the recipe name and ingredients from this text. Return ONLY valid JSON, no markdown, no explanation:\n{"name":"Recipe Name","ingredients":[{"name":"ingredient name","qty":1.5,"unit":"cup"}]}\nRules:\n- name: clean ingredient name only, no quantities\n- qty: a single number (pick the metric gram/ml value if both are given, otherwise pick the first number); null if truly unspecified\n- unit: the unit string (g, kg, oz, lb, tsp, tbsp, cup, ml, l) or empty string if countable/no unit\n- Handle dual-unit formats like "1lb/450g" or "1g or 1/2tsp" by picking one value\n- Items with no quantity like "salt" or "coarse salt" should have qty: null and unit: ""\n- Recipe name: infer a sensible name from context, or use "Imported Recipe" if unclear';
+var EP='Extract the recipe name and ingredients from this text. Return ONLY valid JSON, no markdown, no explanation:\n{"name":"Recipe Name","ingredients":[{"name":"ingredient name","qty":1.5,"unit":"cup"}]}\nRules:\n- name: clean ingredient name only, no quantities. For canned/jarred goods include the size in the name, e.g. "crushed tomatoes (28oz can)"\n- qty: a single number. For cans/jars use the number of cans/jars as qty with empty unit. Do NOT convert cans to grams.\n- unit: the unit string (g, kg, oz, lb, tsp, tbsp, cup, ml, l) or empty string if countable or sold by the can/jar/package\n- Handle dual-unit formats like "1lb/450g" or "1g or 1/2tsp" by picking one value\n- Items with no quantity like "salt" or "coarse salt" should have qty: null and unit: ""\n- Canned goods: "1 (28oz) can crushed tomatoes" -> name: "crushed tomatoes (28oz can)", qty: 1, unit: ""\n- Recipe name: infer a sensible name from context, or use "Imported Recipe" if unclear';
 
 function IngRows(props){
   var ings=props.ings,onChange=props.onChange,onAdd=props.onAdd,onRemove=props.onRemove;
@@ -725,7 +726,7 @@ function App(){
         e('h1',null,'mise en place'),
         e('span',{className:'subtitle'},'meal planner')
       ),
-      e('p',{className:'tagline'},'Plan your week. Consolidate ingredients. Waste less.',e('span',{className:'ver'},'v19')),
+      e('p',{className:'tagline'},'Plan your week. Consolidate ingredients. Waste less.',e('span',{className:'ver'},'v20')),
       e('div',{className:'tabs'},
         e('button',{className:'tbtn'+(view==='plan'?' on':''),onClick:function(){setView('plan');}},'Recipes'),
         e('button',{className:'tbtn'+(view==='favs'?' on':''),onClick:function(){setView('favs');}},
