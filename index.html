@@ -305,7 +305,9 @@ function consolidate(recipes){
       }
     }
     var pantry=isPantry(item.name);
-    return{name:item.name,consolidated:cons,entries:item.entries,pantry:pantry};
+    var hasQty=item.entries.some(function(x){return x.qty!==null&&x.qty!==''&&x.qty!==undefined&&Number(x.qty)>0;});
+    var optional=!hasQty;
+    return{name:item.name,consolidated:cons,entries:item.entries,pantry:pantry,optional:optional};
   });
 }
 function fmtQ(n){
@@ -642,12 +644,13 @@ function App(){
       e('p',null,'No recipes selected.'),
       e('button',{className:'btng',style:{marginTop:16},onClick:function(){setView('plan');}},'\u2190 Back to recipes')
     );
-    var buyItems=cons.filter(function(i){return !i.pantry;});
-    var pantryItems=cons.filter(function(i){return i.pantry;});
+    var buyItems=cons.filter(function(i){return !i.pantry&&!i.optional;});
+    var pantryItems=cons.filter(function(i){return i.pantry&&!i.optional;});
+    var optionalItems=cons.filter(function(i){return i.optional;});
     var pantryMap={};
     pantryItems.forEach(function(i){var k=nkey(i.name);if(!pantryMap[k])pantryMap[k]=i.name;});
     var pantryUniq=Object.values(pantryMap);
-    var totalItems=buyItems.length+pantryUniq.length;
+    var totalItems=buyItems.length+pantryUniq.length+optionalItems.length;
     function renderBuyItem(item,i){
       var k=nkey(item.name),chk=checked.has(k);
       return e('div',{key:i,className:'sitem'+(chk?' chk':''),onClick:function(){togChk(k);}},
@@ -683,6 +686,7 @@ function App(){
         e('div',{className:'stats'},
           e('div',null,e('div',{className:'stat-n'},buyItems.length),e('div',{className:'stat-l'},'to buy')),
           e('div',null,e('div',{className:'stat-n'},pantryUniq.length),e('div',{className:'stat-l'},'pantry check')),
+          e('div',null,e('div',{className:'stat-n'},optionalItems.length),e('div',{className:'stat-l'},'optional')),
           e('div',null,e('div',{className:'stat-n'},checked.size),e('div',{className:'stat-l'},'checked off'))
         ),
         checked.size>0?e('div',{className:'pbar'},e('div',{className:'pfill',style:{width:(checked.size/totalItems*100)+'%'}})):null
@@ -705,6 +709,28 @@ function App(){
         ),
         pantryUniq.map(function(name,i){return renderPantryItem(name,i);})
       ):null,
+      optionalItems.length>0?e('div',{className:'list-card',style:{marginTop:12}},
+        e('div',{className:'list-hdr'},
+          e('div',null,
+            e('div',{className:'stitle',style:{marginBottom:0}},'Optional'),
+            e('p',{style:{fontSize:'0.7rem',color:'#a09070',fontFamily:"'DM Mono',monospace",marginTop:2}},'Garnish and other items without quantities')
+          )
+        ),
+        optionalItems.map(function(item,i){
+          var k='o_'+nkey(item.name),chk=checked.has(k);
+          return e('div',{key:i,className:'sitem'+(chk?' chk':''),onClick:function(){togChk(k);}},
+            e('div',{className:'cbox'},chk?e(Checkmark):null),
+            e('div',{style:{flex:1}},
+              e('span',{className:'iname'},item.name),
+              e('div',{className:'srcs'},
+                item.entries.map(function(x,j){
+                  return e('span',{key:j},(j>0?' · ':'')+x.recipe);
+                })
+              )
+            )
+          );
+        })
+      ):null,
       e('div',{className:'cta'},
         e('button',{className:'btng',onClick:function(){setView('plan');}},'\u2190 Edit plan'),
         e('button',{className:'btnp',onClick:function(){
@@ -726,7 +752,7 @@ function App(){
         e('h1',null,'mise en place'),
         e('span',{className:'subtitle'},'meal planner')
       ),
-      e('p',{className:'tagline'},'Plan your week. Consolidate ingredients. Waste less.',e('span',{className:'ver'},'v20')),
+      e('p',{className:'tagline'},'Plan your week. Consolidate ingredients. Waste less.',e('span',{className:'ver'},'v21')),
       e('div',{className:'tabs'},
         e('button',{className:'tbtn'+(view==='plan'?' on':''),onClick:function(){setView('plan');}},'Recipes'),
         e('button',{className:'tbtn'+(view==='favs'?' on':''),onClick:function(){setView('favs');}},
