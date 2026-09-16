@@ -162,8 +162,34 @@ function nkey(n){
   }
   return s;
 }
-  return s;
-}
+
+// Ingredient aliases — maps name variations to canonical names
+var ALIASES={
+  'scallion':'scallion','green onion':'scallion','spring onion':'scallion',
+  'yellow onion':'onion','white onion':'onion','sweet onion':'onion',
+  'garlic clove':'garlic','garlic leave':'garlic',
+  'red pepper flake':'red pepper flake','red chili flake':'red pepper flake','chili flake':'red pepper flake',
+  'basil leave':'basil','fresh basil':'basil',
+  'italian sausage':'italian sausage','hot italian sausage':'italian sausage',
+  'bulk hot or mild italian sausage':'italian sausage',
+  'olive oil':'olive oil','extra virgin olive oil':'olive oil',
+  'tomato paste':'tomato paste',
+  'better than bouillon':'better than bouillon','beef better than bouillon':'better than bouillon',
+  'chicken better than bouillon':'better than bouillon',
+  'granulated sugar':'sugar',
+  'crushed tomato':'crushed tomato','canned crushed tomato':'crushed tomato',
+  'crushed or strained tomato':'crushed tomato','strained tomato':'crushed tomato',
+  'whole peeled tomato':'whole peeled tomato',
+  'spaghetti':'spaghetti','pasta':'pasta',
+  'black pepper':'black pepper','cracked black pepper':'black pepper',
+  'mozzarella':'mozzarella','fresh mozzarella':'mozzarella',
+  'ricotta':'ricotta','milk ricotta':'ricotta','whole milk ricotta':'ricotta',
+  'parmesan':'parmesan','parmigiano':'parmesan','parmigiano reggiano':'parmesan',
+  'heavy cream':'heavy cream','heavy whipping cream':'heavy cream',
+  'onion':'onion','garlic':'garlic',
+  'ground beef':'ground beef','ground chuck':'ground beef',
+  'red onion':'red onion',
+};
 
 // Density table: grams per tsp for common ingredients
 // Used to convert between weight and volume units
@@ -786,7 +812,7 @@ function App(){
         e('h1',null,'mise en place'),
         e('span',{className:'subtitle'},'meal planner')
       ),
-      e('p',{className:'tagline'},'Plan your week. Consolidate ingredients. Waste less.',e('span',{className:'ver'},'v24')),
+      e('p',{className:'tagline'},'Plan your week. Consolidate ingredients. Waste less.',e('span',{className:'ver'},'v26')),
       e('div',{className:'tabs'},
         e('button',{className:'tbtn'+(view==='plan'?' on':''),onClick:function(){setView('plan');}},'Recipes'),
         e('button',{className:'tbtn'+(view==='favs'?' on':''),onClick:function(){setView('favs');}},
