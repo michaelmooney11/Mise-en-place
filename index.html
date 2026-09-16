@@ -410,35 +410,29 @@ function App(){
   function doUrl(){
     if(!urlVal.trim())return;setLoading(true);setErr('');
     var url=urlVal.trim();
-    var proxies=[
-      'https://api.allorigins.win/get?url='+encodeURIComponent(url),
-      'https://corsproxy.io/?'+encodeURIComponent(url),
-    ];
-    function tryProxy(i){
-      if(i>=proxies.length){setLoading(false);doUrlViaClaude();return;}
-      var isAllOrigins=proxies[i].includes('allorigins');
-      fetch(proxies[i])
-        .then(function(r){return isAllOrigins?r.json():r.text();})
-        .then(function(d){
-          var html=isAllOrigins?d.contents:d;
-          if(!html||html.length<100)throw new Error('empty');
-          var txt=stripHtml(html);
-          return claude([{role:'user',content:EP+'\n\nPage text:\n'+txt}]);
-        })
-        .then(function(p){addParsed(p);setUrlVal('');setLoading(false);})
-        .catch(function(){tryProxy(i+1);});
-    }
-    tryProxy(0);
-  }
-  function doUrlViaClaude(){
-    if(!urlVal.trim())return;setLoading(true);setErr('');
-    claude(
-      [{role:'user',content:'Fetch this URL and extract the recipe ingredients. URL: '+urlVal.trim()+'\n\n'+EP}],
-      {tools:[{type:'web_search_20250305',name:'web_search'}]}
-    )
-    .then(function(parsed){addParsed(parsed);setUrlVal('');})
-    .catch(function(ex){setErr("Couldn't fetch that URL. Try the Text tab instead.");})
-    .finally(function(){setLoading(false);});
+    // Fetch the page via the worker (server-side, no CORS issues)
+    fetch(WORKER+'/fetch',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({url:url})
+    })
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(!d.html||d.html.length<100)throw new Error('empty');
+      var txt=stripHtml(d.html);
+      return claude([{role:'user',content:EP+'\n\nPage text:\n'+txt}]);
+    })
+    .then(function(p){addParsed(p);setUrlVal('');setLoading(false);})
+    .catch(function(){
+      // Fallback: ask Claude to search for it
+      claude(
+        [{role:'user',content:'Fetch this URL and extract the recipe ingredients. URL: '+url+'\n\n'+EP}],
+        {tools:[{type:'web_search_20250305',name:'web_search'}]}
+      )
+      .then(function(parsed){addParsed(parsed);setUrlVal('');})
+      .catch(function(){setErr("Couldn't fetch that URL. Try copying the recipe text into the Text tab.");})
+      .finally(function(){setLoading(false);});
+    });
   }
   function doPhoto(){
     if(!photo)return;setLoading(true);setErr('');
@@ -672,7 +666,7 @@ function App(){
         e('h1',null,'mise en place'),
         e('span',{className:'subtitle'},'meal planner')
       ),
-      e('p',{className:'tagline'},'Plan your week. Consolidate ingredients. Waste less.',e('span',{className:'ver'},'v16')),
+      e('p',{className:'tagline'},'Plan your week. Consolidate ingredients. Waste less.',e('span',{className:'ver'},'v17')),
       e('div',{className:'tabs'},
         e('button',{className:'tbtn'+(view==='plan'?' on':''),onClick:function(){setView('plan');}},'Recipes'),
         e('button',{className:'tbtn'+(view==='favs'?' on':''),onClick:function(){setView('favs');}},
