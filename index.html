@@ -179,6 +179,53 @@ function gToTsp(grams, ingredientName){
   return grams/density; // tsp
 }
 
+// Ingredients to exclude entirely from the shopping list
+var EXCLUDE=['water','warm water','cold water','ice water','boiling water'];
+
+// Pantry staples — shown in a separate check section, no quantities
+var PANTRY=[
+  // Oils & fats
+  'olive oil','extra virgin olive oil','vegetable oil','canola oil','coconut oil',
+  'sesame oil','avocado oil','neutral oil','cooking oil','butter','ghee',
+  // Vinegars
+  'vinegar','white vinegar','red wine vinegar','white wine vinegar','apple cider vinegar',
+  'balsamic vinegar','rice vinegar','sherry vinegar',
+  // Salt & sugar
+  'salt','kosher salt','sea salt','coarse salt','flaky salt','table salt',
+  'sugar','granulated sugar','brown sugar','powdered sugar','confectioners sugar',
+  // Flour & starches
+  'flour','all purpose flour','bread flour','cake flour','cornstarch','arrowroot',
+  'baking soda','baking powder',
+  // Dried spices & herbs
+  'black pepper','white pepper','red pepper flake','chili flake','cayenne',
+  'paprika','smoked paprika','cumin','coriander','turmeric','cinnamon','nutmeg',
+  'oregano','dried oregano','thyme','dried thyme','basil','dried basil',
+  'rosemary','dried rosemary','bay leaf','bay leaves','chili powder','curry powder',
+  'garlic powder','onion powder','mustard powder','cardamom','clove','allspice',
+  'ginger','dried ginger','vanilla extract','red chili flake',
+  // Condiments & sauces
+  'soy sauce','fish sauce','worcestershire','worcestershire sauce',
+  'hot sauce','sriracha','tabasco','oyster sauce','hoisin sauce',
+  'dijon mustard','mustard','ketchup','mayonnaise',
+  'honey','maple syrup','molasses',
+  // Stocks & pastes
+  'better than bouillon','beef better than bouillon','chicken better than bouillon',
+  'tomato paste','miso','miso paste',
+  // Dry goods
+  'yeast','instant yeast','active dry yeast',
+  'cocoa powder','cocoa','chocolate chips',
+  'dried pasta','pasta',
+];
+
+function isPantry(name){
+  var n=nkey(name);
+  return PANTRY.some(function(p){return n===nkey(p)||n.indexOf(nkey(p))!==-1||nkey(p).indexOf(n)!==-1;});
+}
+function isExcluded(name){
+  var n=nkey(name);
+  return EXCLUDE.some(function(x){return n===nkey(x)||n.indexOf(nkey(x))!==-1;});
+}
+
 // Ingredients that should always be countable (no volume/weight unit)
 var COUNTABLE=['bread','baguette','loaf','roll','bun','bagel','tortilla','pita',
   'egg','onion','shallot','garlic','clove','lemon','lime','orange','apple',
@@ -201,7 +248,9 @@ function consolidate(recipes){
       map[k].entries.push({qty:ing.qty,unit:ing.unit,recipe:r.name});
     });
   });
-  return Object.values(map).map(function(item){
+  return Object.values(map).filter(function(item){
+    return !isExcluded(item.name);
+  }).map(function(item){
     var units=item.entries.map(function(x){return x.unit;}).filter(Boolean);
     var cons=null;
     // Force countable treatment for bread, eggs, onions etc
@@ -254,7 +303,8 @@ function consolidate(recipes){
         cons={qty:rounded2,unit:'',rounded:rounded2!==tot2,exact:+tot2.toFixed(2)};
       }
     }
-    return{name:item.name,consolidated:cons,entries:item.entries};
+    var pantry=isPantry(item.name);
+    return{name:item.name,consolidated:cons,entries:item.entries,pantry:pantry};
   });
 }
 function fmtQ(n){
@@ -604,7 +654,13 @@ function App(){
       e('p',null,'No recipes selected.'),
       e('button',{className:'btng',style:{marginTop:16},onClick:function(){setView('plan');}},'\u2190 Back to recipes')
     );
-    var items=cons.map(function(item,i){
+    var buyItems=cons.filter(function(i){return !i.pantry;});
+    var pantryItems=cons.filter(function(i){return i.pantry;});
+    var pantryMap={};
+    pantryItems.forEach(function(i){var k=nkey(i.name);if(!pantryMap[k])pantryMap[k]=i.name;});
+    var pantryUniq=Object.values(pantryMap);
+    var totalItems=buyItems.length+pantryUniq.length;
+    function renderBuyItem(item,i){
       var k=nkey(item.name),chk=checked.has(k);
       return e('div',{key:i,className:'sitem'+(chk?' chk':''),onClick:function(){togChk(k);}},
         e('div',{className:'cbox'},chk?e(Checkmark):null),
@@ -613,38 +669,54 @@ function App(){
             e('span',{className:'iname'},item.name),
             item.consolidated?e('span',{className:'qbadge'},
               fmtQ(item.consolidated.qty)+(item.consolidated.unit?' '+item.consolidated.unit:''),
-              item.consolidated.rounded?e('span',{className:'rtag'},'\u2191'):null
+              item.consolidated.rounded?e('span',{className:'rtag'},'↑'):null
             ):null
           ),
           e('div',{className:'srcs'},
             item.entries.map(function(x,j){
-              return e('span',{key:j},(j>0?' \u00b7 ':'')+x.recipe+' ('+fmtQ(x.qty)+(x.unit?' '+x.unit:'')+')');
+              return e('span',{key:j},(j>0?' · ':'')+x.recipe+' ('+fmtQ(x.qty)+(x.unit?' '+x.unit:'')+')'); 
             })
           )
         )
       );
-    });
+    }
+    function renderPantryItem(name,i){
+      var k='p_'+nkey(name),chk=checked.has(k);
+      return e('div',{key:i,className:'sitem'+(chk?' chk':''),onClick:function(){togChk(k);}},
+        e('div',{className:'cbox'},chk?e(Checkmark):null),
+        e('div',{style:{flex:1}},e('span',{className:'iname'},name))
+      );
+    }
     return e('div',null,
       e('div',{className:'summary'},
         e('div',{className:'stitle'},"This week's plan"),
         e('div',{className:'plan-tags'},selR.map(function(r){return e('span',{key:r.id,className:'plan-tag'},r.name);})),
         e('div',{className:'divider'}),
         e('div',{className:'stats'},
-          e('div',null,e('div',{className:'stat-n'},cons.length),e('div',{className:'stat-l'},'unique items')),
+          e('div',null,e('div',{className:'stat-n'},buyItems.length),e('div',{className:'stat-l'},'to buy')),
+          e('div',null,e('div',{className:'stat-n'},pantryUniq.length),e('div',{className:'stat-l'},'pantry check')),
           e('div',null,e('div',{className:'stat-n'},checked.size),e('div',{className:'stat-l'},'checked off'))
         ),
-        checked.size>0?e('div',{className:'pbar'},e('div',{className:'pfill',style:{width:(checked.size/cons.length*100)+'%'}})):null
+        checked.size>0?e('div',{className:'pbar'},e('div',{className:'pfill',style:{width:(checked.size/totalItems*100)+'%'}})):null
       ),
-      e('div',{className:'list-card'},
+      buyItems.length>0?e('div',{className:'list-card'},
         e('div',{className:'list-hdr'},
-          e('div',{className:'stitle',style:{marginBottom:0}},'Consolidated shopping list'),
-          checked.size>0?e('button',{
-            style:{border:'none',background:'none',cursor:'pointer',fontSize:'0.74rem',color:'#a09070'},
+          e('div',{className:'stitle',style:{marginBottom:0}},'Buy'),
+          checked.size>0?e('button',{style:{border:'none',background:'none',cursor:'pointer',fontSize:'0.74rem',color:'#a09070'},
             onClick:function(){setChecked(new Set());}
           },'Clear checked'):null
         ),
-        items
-      ),
+        buyItems.map(function(item,i){return renderBuyItem(item,i);})
+      ):null,
+      pantryUniq.length>0?e('div',{className:'list-card',style:{marginTop:12}},
+        e('div',{className:'list-hdr'},
+          e('div',null,
+            e('div',{className:'stitle',style:{marginBottom:0}},'Pantry Check'),
+            e('p',{style:{fontSize:'0.7rem',color:'#a09070',fontFamily:"'DM Mono',monospace",marginTop:2}},'Verify you have these before shopping')
+          )
+        ),
+        pantryUniq.map(function(name,i){return renderPantryItem(name,i);})
+      ):null,
       e('div',{className:'cta'},
         e('button',{className:'btng',onClick:function(){setView('plan');}},'\u2190 Edit plan'),
         e('button',{className:'btnp',onClick:function(){
@@ -666,7 +738,7 @@ function App(){
         e('h1',null,'mise en place'),
         e('span',{className:'subtitle'},'meal planner')
       ),
-      e('p',{className:'tagline'},'Plan your week. Consolidate ingredients. Waste less.',e('span',{className:'ver'},'v17')),
+      e('p',{className:'tagline'},'Plan your week. Consolidate ingredients. Waste less.',e('span',{className:'ver'},'v18')),
       e('div',{className:'tabs'},
         e('button',{className:'tbtn'+(view==='plan'?' on':''),onClick:function(){setView('plan');}},'Recipes'),
         e('button',{className:'tbtn'+(view==='favs'?' on':''),onClick:function(){setView('favs');}},
