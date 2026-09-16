@@ -382,7 +382,7 @@ function App(){
   }
   function delFav(id){setFavs(function(fs){return fs.filter(function(f){return f.id!==id;});});}
 
-  var WORKER='grocery-list-consolidation.michael-r-mooney11.workers.dev'; // Paste your Colab ngrok URL here
+  var WORKER='https://grocery-list-consolidation.michael-r-mooney11.workers.dev';
   function claude(messages,extra){
     var body=Object.assign({model:'claude-sonnet-4-5',max_tokens:1000,messages:messages},extra||{});
     return fetch(WORKER,{
