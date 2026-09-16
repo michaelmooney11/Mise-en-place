@@ -276,7 +276,7 @@ var PANTRY=[
 
 function isPantry(name){
   var n=nkey(name);
-  return PANTRY.some(function(p){return n===nkey(p)||n.indexOf(nkey(p))!==-1||nkey(p).indexOf(n)!==-1;});
+  return PANTRY.some(function(p){var pk=nkey(p);return n===pk;});
 }
 function isExcluded(name){
   var n=nkey(name);
@@ -287,8 +287,8 @@ function isExcluded(name){
 var COUNTABLE=['can','jar','package','tin','box','bag','bottle',
   'bay leaf','bay leave',
   'bread','baguette','loaf','roll','bun','bagel','tortilla','pita',
-  'egg','onion','shallot','garlic','clove','lemon','lime','orange','apple',
-  'tomato','potato','carrot','pepper','chili','chile','avocado','zucchini',
+  'egg','shallot','lemon','lime','orange','apple',
+  'potato','carrot','avocado','zucchini',
   'cucumber','eggplant','beetroot','turnip','radish','scallion','leek',
   'banana','peach','plum','mango','chicken','breast','thigh','fillet',
   'strip','slice','piece','can','jar','package','head',
@@ -368,6 +368,22 @@ function consolidate(recipes){
       }
     }
     var hasQty=item.entries.some(function(x){return x.qty!==null&&x.qty!==''&&x.qty!==undefined&&Number(x.qty)>0;});
+    // Fallback: if consolidation failed but we have qty entries, sum them as-is
+    if(!cons&&hasQty){
+      var qtyEntries=item.entries.filter(function(x){return x.qty&&Number(x.qty)>0;});
+      if(qtyEntries.length>0){
+        var allSameUnit=qtyEntries.every(function(x){return x.unit===qtyEntries[0].unit;});
+        if(allSameUnit){
+          var tot=qtyEntries.reduce(function(s,x){return s+(x.qty||0);},0);
+          var sv=msnap(tot,qtyEntries[0].unit);
+          cons={qty:sv.qty,unit:sv.unit,rounded:sv.rounded,exact:+tot.toFixed(2)};
+        } else {
+          // Mixed units - show largest entry
+          var biggest=qtyEntries.reduce(function(a,b){return (a.qty||0)>(b.qty||0)?a:b;});
+          cons={qty:biggest.qty,unit:biggest.unit,rounded:false,exact:biggest.qty};
+        }
+      }
+    }
     var optional=!hasQty&&!cons;
     // Pantry staples always go to pantry check regardless of quantity
     var pantry=isPantry(item.name);
@@ -819,7 +835,7 @@ function App(){
         e('h1',null,'mise en place'),
         e('span',{className:'subtitle'},'meal planner')
       ),
-      e('p',{className:'tagline'},'Plan your week. Consolidate ingredients. Waste less.',e('span',{className:'ver'},'v31')),
+      e('p',{className:'tagline'},'Plan your week. Consolidate ingredients. Waste less.',e('span',{className:'ver'},'v32')),
       e('div',{className:'tabs'},
         e('button',{className:'tbtn'+(view==='plan'?' on':''),onClick:function(){setView('plan');}},'Recipes'),
         e('button',{className:'tbtn'+(view==='favs'?' on':''),onClick:function(){setView('favs');}},
