@@ -142,6 +142,28 @@ var ALIASES={
   'scallion':'scallion','green onion':'scallion','spring onion':'scallion',
   'yellow onion':'onion','white onion':'onion','sweet onion':'onion','red onion':'red onion',
   'garlic clove':'garlic','garlic cloves':'garlic',
+  'garlic minced/pressed':'garlic','garlic minced pressed':'garlic',
+  'yellow onion medium diced':'onion','yellow onion':'onion','white onion':'onion',
+  'fennel seed':'fennel seed',
+  'calabrian chile':'calabrian chile','calabrian chili':'calabrian chile',
+  'hot italian sausage':'italian sausage','italian sausage link':'italian sausage',
+  'bulk hot or mild italian sausage pork chicken or turkey':'italian sausage',
+  'whole milk ricotta':'ricotta','ricotta cheese':'ricotta',
+  'black pepper':'black pepper','cracked black pepper':'black pepper',
+  'tomato paste':'tomato paste',
+  'beef better than bouillon':'better than bouillon',
+  'chicken better than bouillon':'better than bouillon',
+  'canned crushed tomato':'crushed tomato',
+  'crushed or strained tomato':'crushed tomato',
+  'whole peeled tomato with their juice':'whole peeled tomato',
+  'dried rigatoni pasta':'rigatoni','dried rigatoni':'rigatoni',
+  'dried spaghetti broken in half':'spaghetti','dried spaghetti':'spaghetti',
+  'dried pasta such as small shells farfalle or other shaped pasta':'pasta',
+  'granulated sugar':'sugar',
+  'heavy cream':'heavy cream','heavy whipping cream':'heavy cream',
+  'fresh mozzarella torn into bite size piece':'mozzarella',
+  'fresh basil chopped':'basil','basil leave':'basil',
+
   'red pepper flake':'red pepper flake','red-pepper flake':'red pepper flake',
   'red chili flake':'red pepper flake','chili flake':'red pepper flake',
   'parm':'parmesan','parmigiano':'parmesan','parmigiano reggiano':'parmesan',
@@ -283,13 +305,18 @@ function consolidate(recipes){
   recipes.forEach(function(r){
     r.ingredients.forEach(function(ing){
       var k=nkey(ing.name);
-      if(!map[k])map[k]={name:ing.name,entries:[]};
-      map[k].entries.push({qty:ing.qty,unit:ing.unit,recipe:r.name});
+      if(isExcluded(ing.name))return;
+      // Normalize qty: if has number but no unit and not countable, assume grams
+      var qty=ing.qty!==null&&ing.qty!==''&&ing.qty!==undefined?Number(ing.qty):null;
+      var unit=ing.unit||'';
+      if(qty&&qty>0&&!unit&&!shouldBeCountable(ing.name))unit='g';
+      // Use canonical name from alias as display name
+      var displayName=ALIASES[k]||ALIASES[ing.name.toLowerCase().trim()]||ing.name;
+      if(!map[k])map[k]={name:displayName,entries:[]};
+      map[k].entries.push({qty:qty,unit:unit,recipe:r.name});
     });
   });
-  return Object.values(map).filter(function(item){
-    return !isExcluded(item.name);
-  }).map(function(item){
+  return Object.values(map).map(function(item){
     var units=item.entries.map(function(x){return x.unit;}).filter(Boolean);
     var cons=null;
     // Force countable treatment for bread, eggs, onions etc
@@ -342,13 +369,6 @@ function consolidate(recipes){
         cons={qty:rounded2,unit:'',rounded:rounded2!==tot2,exact:+tot2.toFixed(2)};
       }
     }
-    // If entries have qty but no unit and item isn't countable, assume grams
-    item.entries=item.entries.map(function(x){
-      if(x.qty&&Number(x.qty)>0&&!x.unit&&!shouldBeCountable(item.name)){
-        return Object.assign({},x,{unit:'g'});
-      }
-      return x;
-    });
     var pantry=isPantry(item.name);
     var hasQty=item.entries.some(function(x){return x.qty!==null&&x.qty!==''&&x.qty!==undefined&&Number(x.qty)>0;});
     var optional=!hasQty;
@@ -797,7 +817,7 @@ function App(){
         e('h1',null,'mise en place'),
         e('span',{className:'subtitle'},'meal planner')
       ),
-      e('p',{className:'tagline'},'Plan your week. Consolidate ingredients. Waste less.',e('span',{className:'ver'},'v22')),
+      e('p',{className:'tagline'},'Plan your week. Consolidate ingredients. Waste less.',e('span',{className:'ver'},'v23')),
       e('div',{className:'tabs'},
         e('button',{className:'tbtn'+(view==='plan'?' on':''),onClick:function(){setView('plan');}},'Recipes'),
         e('button',{className:'tbtn'+(view==='favs'?' on':''),onClick:function(){setView('favs');}},
