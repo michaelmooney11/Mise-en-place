@@ -136,24 +136,22 @@ function msnap(qty,unit){
   return{qty:v,unit:unit,rounded:Math.abs(v-qty)>.01};
 }
 // Prep words to strip from ingredient names
-var PREP_WORDS=/\b(fresh|canned|dried|ground|minced|pressed|chopped|sliced|diced|grated|shredded|torn|coarsely|finely|thinly|small|medium|large|extra|virgin|whole|peeled|boneless|skinless|cooked|raw|frozen|thawed|rinsed|drained|packed|heaping|rounded|scant|hot|mild|bulk|aged|cracked|strained|broken|shaped|such|bite|size|dust|sifted|approximately|protein|or|in|into|as|other|half|with|their|juice|cut|leaving|floret|intact|farfalle|shells|piece|pieces)\b/gi;
+var PREP_WORDS=/\b(fresh|canned|dried|ground|minced|pressed|chopped|sliced|diced|grated|shredded|torn|coarsely|finely|thinly|small|medium|large|extra|virgin|whole|peeled|boneless|skinless|cooked|raw|frozen|thawed|rinsed|drained|packed|heaping|rounded|scant|hot|mild|bulk|aged|cracked|strained|broken|shaped|such|bite|size|dust|sifted|approximately|protein|or|in|into|as|other|half|with|their|juice|cut|leaving|floret|intact|farfalle|shells|piece|pieces|pork|chicken|turkey)\b/gi;
 function nkey(n){
   var s=n.toLowerCase().trim();
   s=s.replace(/\([^)]*\)/g,' ');
   s=s.replace(/[-]/g,' ');
   s=s.replace(/[,\/]/g,' ');
+  s=s.replace(/\b\d+\b/g,' ');
   s=s.replace(PREP_WORDS,' ');
   s=s.replace(/\s+/g,' ').trim();
-  // Remove duplicate words
   var words=s.split(' '),seen=[];
   words.forEach(function(w){if(w&&seen.indexOf(w)===-1)seen.push(w);});
   s=seen.join(' ');
-  // Careful depluralization
   s=s.replace(/kes$/,'ke');
   s=s.replace(/oes$/,'o');
   s=s.replace(/ves$/,'ve');
   s=s.replace(/([a-z]{3})s$/,'$1');
-  // Alias lookup
   if(ALIASES[s])return ALIASES[s];
   var keys=Object.keys(ALIASES);
   for(var i=0;i<keys.length;i++){
@@ -165,30 +163,34 @@ function nkey(n){
 
 // Ingredient aliases — maps name variations to canonical names
 var ALIASES={
-  'scallion':'scallion','green onion':'scallion','spring onion':'scallion',
-  'yellow onion':'onion','white onion':'onion','sweet onion':'onion',
   'garlic clove':'garlic','garlic leave':'garlic',
-  'red pepper flake':'red pepper flake','red chili flake':'red pepper flake','chili flake':'red pepper flake',
-  'basil leave':'basil','fresh basil':'basil',
-  'italian sausage':'italian sausage','hot italian sausage':'italian sausage',
-  'bulk hot or mild italian sausage':'italian sausage',
+  'red pepper flake':'red pepper flake',
+  'red chili flake':'red pepper flake','chili flake':'red pepper flake',
+  'basil leave':'basil',
+  'italian sausage':'italian sausage',
   'olive oil':'olive oil','extra virgin olive oil':'olive oil',
   'tomato paste':'tomato paste',
-  'better than bouillon':'better than bouillon','beef better than bouillon':'better than bouillon',
+  'better than bouillon':'better than bouillon',
+  'beef better than bouillon':'better than bouillon',
   'chicken better than bouillon':'better than bouillon',
   'granulated sugar':'sugar',
   'crushed tomato':'crushed tomato','canned crushed tomato':'crushed tomato',
   'crushed or strained tomato':'crushed tomato','strained tomato':'crushed tomato',
   'whole peeled tomato':'whole peeled tomato',
-  'spaghetti':'spaghetti','pasta':'pasta',
-  'black pepper':'black pepper','cracked black pepper':'black pepper',
-  'mozzarella':'mozzarella','fresh mozzarella':'mozzarella',
-  'ricotta':'ricotta','milk ricotta':'ricotta','whole milk ricotta':'ricotta',
+  'spaghetti':'spaghetti',
+  'rigatoni':'rigatoni','rigatoni pasta':'rigatoni',
+  'pasta':'pasta',
+  'black pepper':'black pepper',
+  'mozzarella':'mozzarella',
+  'ricotta':'ricotta','milk ricotta':'ricotta',
   'parmesan':'parmesan','parmigiano':'parmesan','parmigiano reggiano':'parmesan',
   'heavy cream':'heavy cream','heavy whipping cream':'heavy cream',
-  'onion':'onion','garlic':'garlic',
-  'ground beef':'ground beef','ground chuck':'ground beef',
-  'red onion':'red onion',
+  'onion':'onion','yellow onion':'onion','white onion':'onion','sweet onion':'onion',
+  'garlic':'garlic',
+  'ground beef':'ground beef','chuck':'ground beef',
+  'kosher salt':'salt','sea salt':'salt','coarse salt':'salt',
+  'basil':'basil','sugar':'sugar',
+  'red onion':'red onion','scallion':'scallion','green onion':'scallion',
 };
 
 // Density table: grams per tsp for common ingredients
@@ -268,7 +270,6 @@ var PANTRY=[
   // Dry goods
   'yeast','instant yeast','active dry yeast',
   'cocoa powder','cocoa','chocolate chips',
-  'dried pasta','pasta',
 ];
 
 function isPantry(name){
@@ -794,8 +795,11 @@ function App(){
       e('div',{className:'cta'},
         e('button',{className:'btng',onClick:function(){setView('plan');}},'\u2190 Edit plan'),
         e('button',{className:'btnp',onClick:function(){
-          var t=cons.map(function(i){return '\u2022 '+i.name+(i.consolidated?' \u2014 '+fmtQ(i.consolidated.qty)+(i.consolidated.unit?' '+i.consolidated.unit:''):'');}).join('\n');
-          if(navigator.clipboard)navigator.clipboard.writeText(t);
+          var lines=[];
+          if(buyItems.length>0){lines.push('BUY');buyItems.forEach(function(i){lines.push('\u2022 '+i.name+(i.consolidated?' \u2014 '+fmtQ(i.consolidated.qty)+(i.consolidated.unit?' '+i.consolidated.unit:''):''));});}
+          if(pantryUniq.length>0){lines.push('');lines.push('PANTRY CHECK');pantryUniq.forEach(function(n){lines.push('\u2022 '+n);});}
+          if(optionalItems.length>0){lines.push('');lines.push('OPTIONAL');optionalItems.forEach(function(i){lines.push('\u2022 '+i.name+' ('+i.entries.map(function(e){return e.recipe;}).join(', ')+')');});}
+          if(navigator.clipboard)navigator.clipboard.writeText(lines.join('\n'));
         }},'Copy List')
       )
     );
@@ -812,7 +816,7 @@ function App(){
         e('h1',null,'mise en place'),
         e('span',{className:'subtitle'},'meal planner')
       ),
-      e('p',{className:'tagline'},'Plan your week. Consolidate ingredients. Waste less.',e('span',{className:'ver'},'v26')),
+      e('p',{className:'tagline'},'Plan your week. Consolidate ingredients. Waste less.',e('span',{className:'ver'},'v29')),
       e('div',{className:'tabs'},
         e('button',{className:'tbtn'+(view==='plan'?' on':''),onClick:function(){setView('plan');}},'Recipes'),
         e('button',{className:'tbtn'+(view==='favs'?' on':''),onClick:function(){setView('favs');}},
