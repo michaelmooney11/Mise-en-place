@@ -369,8 +369,8 @@ function consolidate(recipes){
     }
     var hasQty=item.entries.some(function(x){return x.qty!==null&&x.qty!==''&&x.qty!==undefined&&Number(x.qty)>0;});
     var optional=!hasQty&&!cons;
-    // Only treat as pantry if no recipe specifies a real quantity
-    var pantry=isPantry(item.name)&&!hasQty;
+    // Pantry staples always go to pantry check regardless of quantity
+    var pantry=isPantry(item.name);
     return{name:item.name,consolidated:cons,entries:item.entries,pantry:pantry,optional:optional};
   });
 }
@@ -819,7 +819,7 @@ function App(){
         e('h1',null,'mise en place'),
         e('span',{className:'subtitle'},'meal planner')
       ),
-      e('p',{className:'tagline'},'Plan your week. Consolidate ingredients. Waste less.',e('span',{className:'ver'},'v30')),
+      e('p',{className:'tagline'},'Plan your week. Consolidate ingredients. Waste less.',e('span',{className:'ver'},'v31')),
       e('div',{className:'tabs'},
         e('button',{className:'tbtn'+(view==='plan'?' on':''),onClick:function(){setView('plan');}},'Recipes'),
         e('button',{className:'tbtn'+(view==='favs'?' on':''),onClick:function(){setView('favs');}},
