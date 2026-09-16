@@ -135,7 +135,44 @@ function msnap(qty,unit){
   if(!v){var c=Math.ceil(qty*2)/2;return{qty:c,unit:unit,rounded:c!==qty};}
   return{qty:v,unit:unit,rounded:Math.abs(v-qty)>.01};
 }
-function nkey(n){return n.toLowerCase().trim().replace(/\s+/g," ").replace(/s$/,"");}
+// Prep words to strip from ingredient names
+var PREP_WORDS=/\b(fresh|dried|ground|minced|pressed|chopped|sliced|diced|crushed|grated|shredded|torn|coarsely|finely|thinly|small|medium|large|extra|virgin|whole|peeled|boneless|skinless|cooked|raw|frozen|thawed|rinsed|drained|packed|heaping|rounded|scant|about|approximately|such as|or similar|or other|with their juices|cut into [^,]+|broken in half|[0-9]+[-%]\s*protein|[0-9]+\/[0-9]+)\b/gi;
+// Ingredient aliases — maps variations to a canonical name
+var ALIASES={
+  'scallion':'scallion','green onion':'scallion','spring onion':'scallion',
+  'yellow onion':'onion','white onion':'onion','sweet onion':'onion','red onion':'red onion',
+  'garlic clove':'garlic','garlic cloves':'garlic',
+  'red pepper flake':'red pepper flake','red-pepper flake':'red pepper flake',
+  'red chili flake':'red pepper flake','chili flake':'red pepper flake',
+  'parm':'parmesan','parmigiano':'parmesan','parmigiano reggiano':'parmesan',
+  'aged parmesan':'parmesan','grated parmesan':'parmesan','parmesan cheese':'parmesan',
+  'basil leave':'basil','fresh basil':'basil',
+  'canned crushed tomato':'crushed tomato','crushed tomato':'crushed tomato',
+  'whole peeled tomato':'whole peeled tomato','crushed or strained tomato':'crushed tomato',
+  'strained tomato':'crushed tomato',
+  'extra virgin olive oil':'olive oil','extra-virgin olive oil':'olive oil',
+  'hot italian sausage':'italian sausage','bulk hot or mild italian sausage':'italian sausage',
+  'hot italian pork sausage':'italian sausage','italian pork sausage':'italian sausage',
+  'kosher salt':'salt','sea salt':'salt','coarse salt':'salt','table salt':'salt',
+  '80/20 ground chuck':'ground beef','ground chuck':'ground beef',
+  'whole milk ricotta':'ricotta','ricotta cheese':'ricotta',
+  'fresh mozzarella':'mozzarella','mozzarella cheese':'mozzarella',
+};
+function nkey(n){
+  var s=n.toLowerCase().trim();
+  // Strip prep words and notes in parentheses
+  s=s.replace(/\([^)]*\)/g,'').replace(PREP_WORDS,' ').replace(/\s+/g,' ').trim();
+  // Remove trailing 's' for basic pluralization
+  s=s.replace(/s$/,'');
+  // Check aliases
+  if(ALIASES[s])return ALIASES[s];
+  // Check if any alias key is contained in s
+  var keys=Object.keys(ALIASES);
+  for(var i=0;i<keys.length;i++){
+    if(s===keys[i]||s===keys[i].replace(/s$/,''))return ALIASES[keys[i]];
+  }
+  return s;
+}
 
 // Density table: grams per tsp for common ingredients
 // Used to convert between weight and volume units
@@ -185,7 +222,7 @@ var EXCLUDE=['water','warm water','cold water','ice water','boiling water'];
 // Pantry staples — shown in a separate check section, no quantities
 var PANTRY=[
   // Oils & fats
-  'olive oil','extra virgin olive oil','vegetable oil','canola oil','coconut oil',
+  'vegetable oil','canola oil','coconut oil',
   'sesame oil','avocado oil','neutral oil','cooking oil','butter','ghee',
   // Vinegars
   'vinegar','white vinegar','red wine vinegar','white wine vinegar','apple cider vinegar',
@@ -228,6 +265,7 @@ function isExcluded(name){
 
 // Ingredients that should always be countable (no volume/weight unit)
 var COUNTABLE=['can','jar','package','tin','box','bag','bottle',
+  'bay leaf','bay leave',
   'bread','baguette','loaf','roll','bun','bagel','tortilla','pita',
   'egg','onion','shallot','garlic','clove','lemon','lime','orange','apple',
   'tomato','potato','carrot','pepper','chili','chile','avocado','zucchini',
@@ -304,6 +342,13 @@ function consolidate(recipes){
         cons={qty:rounded2,unit:'',rounded:rounded2!==tot2,exact:+tot2.toFixed(2)};
       }
     }
+    // If entries have qty but no unit and item isn't countable, assume grams
+    item.entries=item.entries.map(function(x){
+      if(x.qty&&Number(x.qty)>0&&!x.unit&&!shouldBeCountable(item.name)){
+        return Object.assign({},x,{unit:'g'});
+      }
+      return x;
+    });
     var pantry=isPantry(item.name);
     var hasQty=item.entries.some(function(x){return x.qty!==null&&x.qty!==''&&x.qty!==undefined&&Number(x.qty)>0;});
     var optional=!hasQty;
@@ -752,7 +797,7 @@ function App(){
         e('h1',null,'mise en place'),
         e('span',{className:'subtitle'},'meal planner')
       ),
-      e('p',{className:'tagline'},'Plan your week. Consolidate ingredients. Waste less.',e('span',{className:'ver'},'v21')),
+      e('p',{className:'tagline'},'Plan your week. Consolidate ingredients. Waste less.',e('span',{className:'ver'},'v22')),
       e('div',{className:'tabs'},
         e('button',{className:'tbtn'+(view==='plan'?' on':''),onClick:function(){setView('plan');}},'Recipes'),
         e('button',{className:'tbtn'+(view==='favs'?' on':''),onClick:function(){setView('favs');}},
