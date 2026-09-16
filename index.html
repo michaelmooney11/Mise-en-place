@@ -324,20 +324,7 @@ function saveFavs(favs){
   try{localStorage.setItem('mep_favs',JSON.stringify(favs));}catch(e){}
 }
 
-var SAMPLES=[
-  {id:"r1",name:"Spaghetti Bolognese",ingredients:[
-    {name:"olive oil",qty:2,unit:"tbsp"},{name:"onion",qty:1,unit:""},
-    {name:"garlic cloves",qty:3,unit:""},{name:"ground beef",qty:500,unit:"g"},
-    {name:"crushed tomatoes",qty:2,unit:"cup"},{name:"dried oregano",qty:1,unit:"tsp"},
-    {name:"spaghetti",qty:400,unit:"g"}]},
-  {id:"r2",name:"Garlic Bread",ingredients:[
-    {name:"butter",qty:4,unit:"tbsp"},{name:"garlic cloves",qty:4,unit:""},
-    {name:"parsley",qty:2,unit:"tbsp"},{name:"baguette",qty:1,unit:""}]},
-  {id:"r3",name:"Greek Salad",ingredients:[
-    {name:"olive oil",qty:3,unit:"tbsp"},{name:"cucumber",qty:1,unit:""},
-    {name:"tomato",qty:2,unit:""},{name:"feta cheese",qty:150,unit:"g"},
-    {name:"black olives",qty:.5,unit:"cup"},{name:"dried oregano",qty:.5,unit:"tsp"}]},
-];
+var SAMPLES=[];
 var AU=["","tsp","tbsp","fl oz","cup","pint","ml","l","g","kg","oz","lb"];
 var EP='Extract the recipe name and ingredients from this text. Return ONLY valid JSON, no markdown, no explanation:\n{"name":"Recipe Name","ingredients":[{"name":"ingredient name","qty":1.5,"unit":"cup"}]}\nRules:\n- name: clean ingredient name only, no quantities\n- qty: a single number (pick the metric gram/ml value if both are given, otherwise pick the first number); null if truly unspecified\n- unit: the unit string (g, kg, oz, lb, tsp, tbsp, cup, ml, l) or empty string if countable/no unit\n- Handle dual-unit formats like "1lb/450g" or "1g or 1/2tsp" by picking one value\n- Items with no quantity like "salt" or "coarse salt" should have qty: null and unit: ""\n- Recipe name: infer a sensible name from context, or use "Imported Recipe" if unclear';
 
@@ -368,7 +355,7 @@ function Checkmark(){
 
 function App(){
   var _r=useState(SAMPLES),recipes=_r[0],setRecipes=_r[1];
-  var _s=useState(new Set(['r1','r2','r3'])),selected=_s[0],setSelected=_s[1];
+  var _s=useState(new Set()),selected=_s[0],setSelected=_s[1];
   var _v=useState('plan'),view=_v[0],setView=_v[1];
   var _c=useState(new Set()),checked=_c[0],setChecked=_c[1];
   var _ei=useState(null),editId=_ei[0],setEditId=_ei[1];
@@ -738,7 +725,7 @@ function App(){
         e('h1',null,'mise en place'),
         e('span',{className:'subtitle'},'meal planner')
       ),
-      e('p',{className:'tagline'},'Plan your week. Consolidate ingredients. Waste less.',e('span',{className:'ver'},'v18')),
+      e('p',{className:'tagline'},'Plan your week. Consolidate ingredients. Waste less.',e('span',{className:'ver'},'v19')),
       e('div',{className:'tabs'},
         e('button',{className:'tbtn'+(view==='plan'?' on':''),onClick:function(){setView('plan');}},'Recipes'),
         e('button',{className:'tbtn'+(view==='favs'?' on':''),onClick:function(){setView('favs');}},
