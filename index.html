@@ -136,63 +136,32 @@ function msnap(qty,unit){
   return{qty:v,unit:unit,rounded:Math.abs(v-qty)>.01};
 }
 // Prep words to strip from ingredient names
-var PREP_WORDS=/\b(fresh|dried|ground|minced|pressed|chopped|sliced|diced|crushed|grated|shredded|torn|coarsely|finely|thinly|small|medium|large|extra|virgin|whole|peeled|boneless|skinless|cooked|raw|frozen|thawed|rinsed|drained|packed|heaping|rounded|scant|about|approximately|such as|or similar|or other|with their juices|cut into [^,]+|broken in half|[0-9]+[-%]\s*protein|[0-9]+\/[0-9]+)\b/gi;
-// Ingredient aliases — maps variations to a canonical name
-var ALIASES={
-  'scallion':'scallion','green onion':'scallion','spring onion':'scallion',
-  'yellow onion':'onion','white onion':'onion','sweet onion':'onion','red onion':'red onion',
-  'garlic clove':'garlic','garlic cloves':'garlic',
-  'garlic minced/pressed':'garlic','garlic minced pressed':'garlic',
-  'yellow onion medium diced':'onion','yellow onion':'onion','white onion':'onion',
-  'fennel seed':'fennel seed',
-  'calabrian chile':'calabrian chile','calabrian chili':'calabrian chile',
-  'hot italian sausage':'italian sausage','italian sausage link':'italian sausage',
-  'bulk hot or mild italian sausage pork chicken or turkey':'italian sausage',
-  'whole milk ricotta':'ricotta','ricotta cheese':'ricotta',
-  'black pepper':'black pepper','cracked black pepper':'black pepper',
-  'tomato paste':'tomato paste',
-  'beef better than bouillon':'better than bouillon',
-  'chicken better than bouillon':'better than bouillon',
-  'canned crushed tomato':'crushed tomato',
-  'crushed or strained tomato':'crushed tomato',
-  'whole peeled tomato with their juice':'whole peeled tomato',
-  'dried rigatoni pasta':'rigatoni','dried rigatoni':'rigatoni',
-  'dried spaghetti broken in half':'spaghetti','dried spaghetti':'spaghetti',
-  'dried pasta such as small shells farfalle or other shaped pasta':'pasta',
-  'granulated sugar':'sugar',
-  'heavy cream':'heavy cream','heavy whipping cream':'heavy cream',
-  'fresh mozzarella torn into bite size piece':'mozzarella',
-  'fresh basil chopped':'basil','basil leave':'basil',
-
-  'red pepper flake':'red pepper flake','red-pepper flake':'red pepper flake',
-  'red chili flake':'red pepper flake','chili flake':'red pepper flake',
-  'parm':'parmesan','parmigiano':'parmesan','parmigiano reggiano':'parmesan',
-  'aged parmesan':'parmesan','grated parmesan':'parmesan','parmesan cheese':'parmesan',
-  'basil leave':'basil','fresh basil':'basil',
-  'canned crushed tomato':'crushed tomato','crushed tomato':'crushed tomato',
-  'whole peeled tomato':'whole peeled tomato','crushed or strained tomato':'crushed tomato',
-  'strained tomato':'crushed tomato',
-  'extra virgin olive oil':'olive oil','extra-virgin olive oil':'olive oil',
-  'hot italian sausage':'italian sausage','bulk hot or mild italian sausage':'italian sausage',
-  'hot italian pork sausage':'italian sausage','italian pork sausage':'italian sausage',
-  'kosher salt':'salt','sea salt':'salt','coarse salt':'salt','table salt':'salt',
-  '80/20 ground chuck':'ground beef','ground chuck':'ground beef',
-  'whole milk ricotta':'ricotta','ricotta cheese':'ricotta',
-  'fresh mozzarella':'mozzarella','mozzarella cheese':'mozzarella',
-};
+var PREP_WORDS=/\b(fresh|canned|dried|ground|minced|pressed|chopped|sliced|diced|grated|shredded|torn|coarsely|finely|thinly|small|medium|large|extra|virgin|whole|peeled|boneless|skinless|cooked|raw|frozen|thawed|rinsed|drained|packed|heaping|rounded|scant|hot|mild|bulk|aged|cracked|strained|broken|shaped|such|bite|size|dust|sifted|approximately|protein|or|in|into|as|other|half|with|their|juice|cut|leaving|floret|intact|farfalle|shells|piece|pieces)\b/gi;
 function nkey(n){
   var s=n.toLowerCase().trim();
-  // Strip prep words and notes in parentheses
-  s=s.replace(/\([^)]*\)/g,'').replace(PREP_WORDS,' ').replace(/\s+/g,' ').trim();
-  // Remove trailing 's' for basic pluralization
-  s=s.replace(/s$/,'');
-  // Check aliases
+  s=s.replace(/\([^)]*\)/g,' ');
+  s=s.replace(/[-]/g,' ');
+  s=s.replace(/[,\/]/g,' ');
+  s=s.replace(PREP_WORDS,' ');
+  s=s.replace(/\s+/g,' ').trim();
+  // Remove duplicate words
+  var words=s.split(' '),seen=[];
+  words.forEach(function(w){if(w&&seen.indexOf(w)===-1)seen.push(w);});
+  s=seen.join(' ');
+  // Careful depluralization
+  s=s.replace(/kes$/,'ke');
+  s=s.replace(/oes$/,'o');
+  s=s.replace(/ves$/,'ve');
+  s=s.replace(/([a-z]{3})s$/,'$1');
+  // Alias lookup
   if(ALIASES[s])return ALIASES[s];
-  // Check if any alias key is contained in s
   var keys=Object.keys(ALIASES);
   for(var i=0;i<keys.length;i++){
-    if(s===keys[i]||s===keys[i].replace(/s$/,''))return ALIASES[keys[i]];
+    var ak=keys[i].replace(/oes$/,'o').replace(/kes$/,'ke').replace(/ves$/,'ve').replace(/([a-z]{3})s$/,'$1');
+    if(s===ak||s===keys[i])return ALIASES[keys[i]];
   }
+  return s;
+}
   return s;
 }
 
@@ -817,7 +786,7 @@ function App(){
         e('h1',null,'mise en place'),
         e('span',{className:'subtitle'},'meal planner')
       ),
-      e('p',{className:'tagline'},'Plan your week. Consolidate ingredients. Waste less.',e('span',{className:'ver'},'v23')),
+      e('p',{className:'tagline'},'Plan your week. Consolidate ingredients. Waste less.',e('span',{className:'ver'},'v24')),
       e('div',{className:'tabs'},
         e('button',{className:'tbtn'+(view==='plan'?' on':''),onClick:function(){setView('plan');}},'Recipes'),
         e('button',{className:'tbtn'+(view==='favs'?' on':''),onClick:function(){setView('favs');}},
