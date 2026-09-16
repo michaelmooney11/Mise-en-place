@@ -115,7 +115,7 @@ var UG={
     fromBase:function(v){
       if(v>=768)return[v/768,"gallon"];if(v>=192)return[v/192,"quart"];
       if(v>=96)return[v/96,"pint"];if(v>=48)return[v/48,"cup"];
-      if(v>=6)return[v/6,"fl oz"];if(v>=3)return[v/3,"tbsp"];return[v,"tsp"];}},
+      if(v>=3)return[v/3,"tbsp"];return[v,"tsp"];}},
   weight:{units:["g","kg","oz","lb"],
     toBase:{g:1,kg:1000,oz:28.3495,lb:453.592},
     fromBase:function(v){
@@ -136,6 +136,62 @@ function msnap(qty,unit){
   return{qty:v,unit:unit,rounded:Math.abs(v-qty)>.01};
 }
 function nkey(n){return n.toLowerCase().trim().replace(/\s+/g," ").replace(/s$/,"");}
+
+// Density table: grams per tsp for common ingredients
+// Used to convert between weight and volume units
+var DENSITY={
+  // Spices & dried herbs (g per tsp)
+  'salt':6,'kosher salt':4,'sea salt':5,'coarse salt':4,
+  'sugar':4,'granulated sugar':4,'brown sugar':4,'powdered sugar':3,'confectioners sugar':3,
+  'flour':2.6,'all purpose flour':2.6,'bread flour':2.7,'cornstarch':2.5,'cornmeal':4,
+  'baking soda':6,'baking powder':4,'cocoa powder':2.5,'cocoa':2.5,
+  'black pepper':2.3,'white pepper':2.4,'cayenne':2,'paprika':2.3,'smoked paprika':2.3,
+  'cumin':2.1,'coriander':1.8,'turmeric':3,'cinnamon':2.6,'nutmeg':2.3,
+  'oregano':1,'dried oregano':1,'thyme':1,'dried thyme':1,
+  'basil':1.2,'dried basil':1.2,'rosemary':1.2,'dried rosemary':1.2,
+  'chili flake':1.8,'red chili flake':1.8,'red pepper flake':1.8,'chili powder':2.5,
+  'garlic powder':3,'onion powder':2.5,'mustard powder':2,'curry powder':2.5,
+  'cardamom':2,'clove':2.1,'allspice':2,'ginger':1.8,'dried ginger':1.8,
+  // Fats & liquids (g per tsp)
+  'butter':4.7,'olive oil':4.5,'vegetable oil':4.5,'coconut oil':4.5,
+  'sesame oil':4.5,'canola oil':4.5,
+  // Sauces & pastes (g per tsp)
+  'tomato paste':5.4,'miso':6,'soy sauce':6,'fish sauce':5.6,
+  'honey':7,'maple syrup':6.7,'vanilla extract':4.2,
+  // Other
+  'yeast':3,'instant yeast':3,'active dry yeast':3,
+};
+
+// g per tsp -> convert grams to tsp base
+function gToTsp(grams, ingredientName){
+  var k=nkey(ingredientName);
+  var density=null;
+  // exact match first
+  if(DENSITY[k])density=DENSITY[k];
+  // partial match
+  if(!density){
+    var keys=Object.keys(DENSITY);
+    for(var i=0;i<keys.length;i++){
+      if(k.indexOf(keys[i])!==-1||keys[i].indexOf(k)!==-1){density=DENSITY[keys[i]];break;}
+    }
+  }
+  if(!density)return null; // unknown ingredient, can't convert
+  return grams/density; // tsp
+}
+
+// Ingredients that should always be countable (no volume/weight unit)
+var COUNTABLE=['bread','baguette','loaf','roll','bun','bagel','tortilla','pita',
+  'egg','onion','shallot','garlic','clove','lemon','lime','orange','apple',
+  'tomato','potato','carrot','pepper','chili','chile','avocado','zucchini',
+  'cucumber','eggplant','beetroot','turnip','radish','scallion','leek',
+  'banana','peach','plum','mango','chicken','breast','thigh','fillet',
+  'sausage','link','strip','slice','piece','can','jar','package','head',
+  'stalk','sprig','bunch','stick'];
+
+function shouldBeCountable(name){
+  var n=nkey(name);
+  return COUNTABLE.some(function(c){return n.indexOf(c)!==-1;});
+}
 function consolidate(recipes){
   var map={};
   recipes.forEach(function(r){
@@ -148,8 +204,35 @@ function consolidate(recipes){
   return Object.values(map).map(function(item){
     var units=item.entries.map(function(x){return x.unit;}).filter(Boolean);
     var cons=null;
+    // Force countable treatment for bread, eggs, onions etc
+    if(shouldBeCountable(item.name)){
+      var tot0=item.entries.reduce(function(s,x){return s+(x.qty||0);},0);
+      if(tot0>0){var r0=Math.ceil(tot0);cons={qty:r0,unit:'',rounded:r0!==tot0,exact:+tot0.toFixed(2)};}
+    }
+    // Try mixed volume+weight consolidation via density table
+    var hasVol=units.some(function(u){return UG.volume.units.includes(u);});
+    var hasWgt=units.some(function(u){return UG.weight.units.includes(u);});
+    if(!cons&&hasVol&&hasWgt){
+      // Convert everything to tsp base
+      var tspTotal=0,ok=true;
+      item.entries.forEach(function(x){
+        if(!x.unit){tspTotal+=(x.qty||0);return;}
+        if(UG.volume.units.includes(x.unit)){
+          tspTotal+=(x.qty||0)*(UG.volume.toBase[x.unit]||1);
+        } else if(UG.weight.units.includes(x.unit)){
+          var grams=(x.qty||0)*(UG.weight.toBase[x.unit]||1);
+          var tsp=gToTsp(grams,item.name);
+          if(tsp===null){ok=false;}else{tspTotal+=tsp;}
+        }
+      });
+      if(ok&&tspTotal>0){
+        var fb2=UG.volume.fromBase(tspTotal);
+        var sv3=msnap(fb2[0],fb2[1]);
+        cons={qty:sv3.qty,unit:sv3.unit,rounded:sv3.rounded,exact:+fb2[0].toFixed(2),mixed:true};
+      }
+    }
     var ents=Object.entries(UG);
-    for(var i=0;i<ents.length;i++){
+    for(var i=0;i<ents.length&&!cons;i++){
       var g=ents[i][1];
       if(units.every(function(u){return g.units.includes(u);})){
         var base=item.entries.reduce(function(s,x){return s+(x.qty||0)*(x.unit?g.toBase[x.unit]||1:1);},0);
@@ -162,6 +245,14 @@ function consolidate(recipes){
       var tot=item.entries.reduce(function(s,x){return s+(x.qty||0);},0);
       var sv2=msnap(tot,units[0]);
       cons={qty:sv2.qty,unit:sv2.unit,rounded:sv2.rounded,exact:+tot.toFixed(2)};
+    }
+    // Countable items (no unit) — round up to nearest whole number
+    if(!cons&&units.length===0){
+      var tot2=item.entries.reduce(function(s,x){return s+(x.qty||0);},0);
+      if(tot2>0){
+        var rounded2=Math.ceil(tot2);
+        cons={qty:rounded2,unit:'',rounded:rounded2!==tot2,exact:+tot2.toFixed(2)};
+      }
     }
     return{name:item.name,consolidated:cons,entries:item.entries};
   });
@@ -291,9 +382,9 @@ function App(){
   }
   function delFav(id){setFavs(function(fs){return fs.filter(function(f){return f.id!==id;});});}
 
-  var WORKER='https://grocery-list-consolidation.michael-r-mooney11.workers.dev'; // Paste your Colab ngrok URL here
+  var WORKER='YOUR_PROXY_URL'; // Paste your Colab ngrok URL here
   function claude(messages,extra){
-    var body=Object.assign({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:messages},extra||{});
+    var body=Object.assign({model:'claude-sonnet-4-5',max_tokens:1000,messages:messages},extra||{});
     return fetch(WORKER,{
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify(body),
@@ -581,7 +672,7 @@ function App(){
         e('h1',null,'mise en place'),
         e('span',{className:'subtitle'},'meal planner')
       ),
-      e('p',{className:'tagline'},'Plan your week. Consolidate ingredients. Waste less.',e('span',{className:'ver'},'v11')),
+      e('p',{className:'tagline'},'Plan your week. Consolidate ingredients. Waste less.',e('span',{className:'ver'},'v16')),
       e('div',{className:'tabs'},
         e('button',{className:'tbtn'+(view==='plan'?' on':''),onClick:function(){setView('plan');}},'Recipes'),
         e('button',{className:'tbtn'+(view==='favs'?' on':''),onClick:function(){setView('favs');}},
